@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Dossier de configuration personnelle
+.env
+.env.*
+!.env.example
+
+# Fichiers secrets / clés
+*.jks
+*.keystore
+*.p12
+*.key
