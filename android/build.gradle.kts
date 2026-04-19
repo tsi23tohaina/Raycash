@@ -12,32 +12,41 @@ val newBuildDir: Directory =
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
-    // Configuration du répertoire de build
+    // 1. Configuration des répertoires de build
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 
-    // Dépendance d'évaluation pour le module app
+    // 2. Dépendance d'évaluation pour le module app
     project.evaluationDependsOn(":app")
 
-    // --- SOLUTION ROBUSTE POUR LE NAMESPACE ---
-    // Cette fonction sera appelée pour chaque projet
-    fun configureNamespace(proj: Project) {
-        if (proj.hasProperty("android")) {
-            val android = proj.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
-            if (android != null && android.namespace == null) {
-                val generatedNamespace = "com.example.raycash.${proj.name.replace(":", ".")}"
-                android.namespace = generatedNamespace
-                println("INFO: Namespace fixé pour ${proj.name} -> $generatedNamespace")
-            }
-        }
-    }
+    // 3. Logique de réparation pour les anciens plugins (tflite_v2)
+    afterEvaluate {
+        if (project.hasProperty("android")) {
+            val android = project.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+            if (android != null) {
+                
+                // Fixer le Namespace si manquant
+                if (android.namespace == null) {
+                    val generatedNamespace = "com.example.raycash.${project.name.replace(":", ".")}"
+                    android.namespace = generatedNamespace
+                    println("INFO: Namespace fixé pour ${project.name} -> $generatedNamespace")
+                }
 
-    // Si le projet est déjà chargé, on configure de suite, sinon on attend
-    if (project.state.executed) {
-        configureNamespace(project)
-    } else {
-        project.afterEvaluate {
-            configureNamespace(project)
+                // Supprimer l'attribut 'package' du Manifest pour éviter le conflit
+                project.tasks.withType<com.android.build.gradle.tasks.ProcessLibraryManifest>().configureEach {
+                    doFirst {
+                        val manifestFile = mainManifest.get().asFile
+                        if (manifestFile.exists()) {
+                            val content = manifestFile.readText()
+                            if (content.contains("package=")) {
+                                val newContent = content.replace(Regex("""package="[^"]*""""), "")
+                                manifestFile.writeText(newContent)
+                                println("NETTOYAGE: Attribut package supprimé dans le Manifest de ${project.name}")
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
