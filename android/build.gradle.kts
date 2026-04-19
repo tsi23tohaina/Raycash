@@ -12,27 +12,33 @@ val newBuildDir: Directory =
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
+    // 1. Configuration du dossier de build
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 
-    project.evaluationDependsOn(":app")
+    // 2. Dépendance indispensable pour Flutter (sauf pour l'app elle-même)
+    if (project.name != "app") {
+        project.evaluationDependsOn(":app")
+    }
 
-    afterEvaluate {
-        if (project.hasProperty("android")) {
-            val android = project.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+    // 3. Fonction de réparation (Namespace + Manifest + lStar)
+    fun repairOldPlugin(proj: Project) {
+        if (proj.hasProperty("android")) {
+            val android = proj.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
             if (android != null) {
                 
-                // FIX 1: Résout l'erreur 'android:attr/lStar not found'
+                // FIX lStar : Force le SDK 34 pour tous les sous-projets
                 android.compileSdkVersion(34)
 
-                // FIX 2: Résout l'erreur 'Namespace not specified'
+                // FIX Namespace : Pour tflite_v2 et autres
                 if (android.namespace == null) {
-                    val generatedNamespace = "com.example.raycash.${project.name.replace(":", ".")}"
+                    val generatedNamespace = "com.example.raycash.${proj.name.replace(":", ".")}"
                     android.namespace = generatedNamespace
+                    println("RAJCASH_LOG: Namespace fixé pour ${proj.name} -> $generatedNamespace")
                 }
 
-                // FIX 3: Résout l'erreur 'package= found in source AndroidManifest.xml'
-                project.tasks.withType<com.android.build.gradle.tasks.ProcessLibraryManifest>().configureEach {
+                // FIX Manifest : Supprime l'attribut package conflictuel
+                proj.tasks.withType<com.android.build.gradle.tasks.ProcessLibraryManifest>().configureEach {
                     doFirst {
                         val manifestFile = mainManifest.get().asFile
                         if (manifestFile.exists()) {
@@ -40,12 +46,21 @@ subprojects {
                             if (content.contains("package=")) {
                                 val newContent = content.replace(Regex("""package="[^"]*""""), "")
                                 manifestFile.writeText(newContent)
-                                println("RAJCASH_LOG: Manifest nettoyé pour ${project.name}")
+                                println("RAJCASH_LOG: Manifest nettoyé pour ${proj.name}")
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    // Gestion du timing sécurisée
+    if (project.state.executed) {
+        repairOldPlugin(project)
+    } else {
+        project.afterEvaluate {
+            repairOldPlugin(project)
         }
     }
 }
