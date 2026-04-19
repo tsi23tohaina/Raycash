@@ -30,13 +30,12 @@ android {
 
     defaultConfig {
         applicationId = "com.example.raycash"
-        minSdk = 25 // Important pour TFLite et la Caméra
+        minSdk = 25 
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    // AJOUT ICI : Configuration pour TFLite
     aaptOptions {
         noCompress("tflite")
         noCompress("lite")
@@ -66,4 +65,18 @@ android {
 
 flutter {
     source = "../.."
-} 
+}
+
+// --- AJOUT DE LA SOLUTION POUR L'ERREUR NAMESPACE ---
+// Ce bloc force les plugins anciens (comme tflite_v2) à avoir un namespace
+subprojects {
+    afterEvaluate {
+        if (hasProperty("android")) {
+            configure<com.android.build.gradle.BaseExtension> {
+                if (namespace == null) {
+                    namespace = "com.example.raycash.${project.name}"
+                }
+            }
+        }
+    }
+}
