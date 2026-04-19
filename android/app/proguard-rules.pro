@@ -1,5 +1,6 @@
 # Garder TensorFlow Lite
 -keep class org.tensorflow.lite.** { *; }
+-keep class com.tflite.tflite_v2.** { *; }
 -keep class com.google.android.gms.tflite.** { *; }
 -dontwarn org.tensorflow.lite.**
 

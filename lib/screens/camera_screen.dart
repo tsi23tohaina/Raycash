@@ -22,21 +22,33 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _initCameraAndModel() async {
+  // On laisse l'application "respirer" 1 seconde au démarrage
+  await Future.delayed(const Duration(seconds: 1));
+
+  try {
     final cameras = await availableCameras();
     if (cameras.isEmpty) return;
 
-    _controller = CameraController(cameras.first, ResolutionPreset.low, enableAudio: false);
+    _controller = CameraController(
+      cameras.first, 
+      ResolutionPreset.medium, // On descend en 'low' pour tester la stabilité
+      enableAudio: false
+    );
+    
     await _controller!.initialize();
 
+    // On charge le modèle seulement APRÈS que la caméra soit OK
     await Tflite.loadModel(
       model: "assets/models/model.tflite",
       labels: "assets/models/labels.txt",
-      numThreads: 2, // Limite à 2 ou 4 maximum pour éviter le crash
-      isAsset: true,
     );
 
-    setState(() => _isInitialized = true);
+    if (mounted) setState(() => _isInitialized = true);
+  } catch (e) {
+    // Si ça crash ici, tu auras au moins une info en debug
+    print("Erreur d'initialisation : $e");
   }
+}
 
   Future<void> _analyzeNow() async {
   if (_isAnalyzing || _controller == null || !_controller!.value.isInitialized) return;
