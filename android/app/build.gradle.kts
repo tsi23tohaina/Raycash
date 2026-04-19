@@ -16,7 +16,8 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.example.raycash"
-    compileSdk = 36 // Fix crucial pour l'erreur lStar
+    // MODIFICATION : On passe en 36 pour satisfaire camera_android_camerax
+    compileSdk = 36 
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -31,6 +32,7 @@ android {
     defaultConfig {
         applicationId = "com.example.raycash"
         minSdk = 25 
+        // MODIFICATION : On aligne le targetSdk sur 36
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -70,17 +72,15 @@ flutter {
     source = "../.."
 }
 
-// --- SOLUTION POUR L'ERREUR NAMESPACE + LSTAR ---
-// On utilise une version plus stable que "afterEvaluate" pour GitHub Actions
-rootProject.subprojects {
+// --- SOLUTION FINALE POUR NAMESPACE + LSTAR + SDK VERSION ---
+subprojects {
     val subproject = this
     subproject.plugins.whenPluginAdded {
         if (this is com.android.build.gradle.api.AndroidBasePlugin) {
             subproject.extensions.configure<com.android.build.gradle.BaseExtension> {
-                // 1. Fix lStar : on force le SDK 34 sur tous les plugins
+                // On force TOUS les plugins en 36 pour éviter les conflits de métadonnées
                 compileSdkVersion(36)
                 
-                // 2. Fix Namespace : pour tflite_v2
                 if (namespace == null) {
                     namespace = "com.example.raycash.${subproject.name}"
                 }
@@ -88,7 +88,7 @@ rootProject.subprojects {
         }
     }
     
-    // Pour tflite_v2 : Nettoyage du Manifest (obligatoire même avec le namespace)
+    // Nettoyage indispensable pour tflite_v2
     subproject.tasks.withType<com.android.build.gradle.tasks.ProcessLibraryManifest>().configureEach {
         doFirst {
             val manifestFile = mainManifest.get().asFile
