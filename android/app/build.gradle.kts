@@ -54,6 +54,9 @@ android {
 
     buildTypes {
         release {
+            // Ajoute cette ligne :
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
