@@ -31,6 +31,8 @@ class _CameraScreenState extends State<CameraScreen> {
     await Tflite.loadModel(
       model: "assets/models/model.tflite",
       labels: "assets/models/labels.txt",
+      numThreads: 2, // Limite à 2 ou 4 maximum pour éviter le crash
+      isAsset: true,
     );
 
     setState(() => _isInitialized = true);
