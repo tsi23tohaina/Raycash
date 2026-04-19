@@ -9,14 +9,13 @@ plugins {
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
-
 if (keystorePropertiesFile.exists()) {
     FileInputStream(keystorePropertiesFile).use(keystoreProperties::load)
 }
 
 android {
     namespace = "com.example.raycash"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34 // Crucial pour l'erreur lStar
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -30,8 +29,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.raycash"
-        minSdk = 25 
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 25
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -41,20 +40,10 @@ android {
         noCompress("lite")
     }
 
-    signingConfigs {
-        create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-            }
-        }
-    }
-
     buildTypes {
         release {
-            // Ajoute cette ligne :
+            // Active ProGuard pour éviter l'erreur de classes manquantes (R8)
+            isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             
             signingConfig = if (keystorePropertiesFile.exists()) {
@@ -68,18 +57,4 @@ android {
 
 flutter {
     source = "../.."
-}
-
-// --- AJOUT DE LA SOLUTION POUR L'ERREUR NAMESPACE ---
-// Ce bloc force les plugins anciens (comme tflite_v2) à avoir un namespace
-subprojects {
-    afterEvaluate {
-        if (hasProperty("android")) {
-            configure<com.android.build.gradle.BaseExtension> {
-                if (namespace == null) {
-                    namespace = "com.example.raycash.${project.name}"
-                }
-            }
-        }
-    }
 }
