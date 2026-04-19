@@ -2,7 +2,7 @@ name: Build Raycash APK
 
 on:
   push:
-    branches: [ main, master ] # Le build se lancera dès que tu "push" sur l'une de ces branches
+    branches: [buildcheck] # Le build se lancera dès que tu "push" sur l'une de ces branches
 
 jobs:
   build:
