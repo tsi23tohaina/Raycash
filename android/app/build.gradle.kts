@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.example.raycash"
-    compileSdk = 34 // Fix crucial pour l'erreur lStar
+    compileSdk = 36 // Fix crucial pour l'erreur lStar
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -31,7 +31,7 @@ android {
     defaultConfig {
         applicationId = "com.example.raycash"
         minSdk = 25 
-        targetSdk = 34
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -78,7 +78,7 @@ rootProject.subprojects {
         if (this is com.android.build.gradle.api.AndroidBasePlugin) {
             subproject.extensions.configure<com.android.build.gradle.BaseExtension> {
                 // 1. Fix lStar : on force le SDK 34 sur tous les plugins
-                compileSdkVersion(34)
+                compileSdkVersion(36)
                 
                 // 2. Fix Namespace : pour tflite_v2
                 if (namespace == null) {
