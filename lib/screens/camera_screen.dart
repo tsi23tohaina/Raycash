@@ -25,7 +25,7 @@ class _CameraScreenState extends State<CameraScreen> {
     final cameras = await availableCameras();
     if (cameras.isEmpty) return;
 
-    _controller = CameraController(cameras.first, ResolutionPreset.medium);
+    _controller = CameraController(cameras.first, ResolutionPreset.low, enableAudio: false);
     await _controller!.initialize();
 
     await Tflite.loadModel(
@@ -39,35 +39,41 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _analyzeNow() async {
-    if (_isAnalyzing || _controller == null) return;
-    setState(() => _isAnalyzing = true);
+  if (_isAnalyzing || _controller == null || !_controller!.value.isInitialized) return;
+  
+  setState(() => _isAnalyzing = true);
 
-    try {
-      final image = await _controller!.takePicture();
-      
-      var recognitions = await Tflite.runModelOnImage(
-        path: image.path,
-        numResults: 1,
-        threshold: 0.6,
-        imageMean: 127.5,
-        imageStd: 127.5,
-      );
+  try {
+    // 1. Capture d'image
+    final XFile image = await _controller!.takePicture();
 
-      // Petit délai pour laisser le temps au Hardware/CPU
-      await Future.delayed(const Duration(milliseconds: 1500));
+    // 2. Lancement de l'IA dans un micro-delay pour laisser l'UI respirer
+    await Future.delayed(const Duration(milliseconds: 100));
 
-      // On renvoie le résultat au NavigationHub
-      widget.onResult(recognitions != null && recognitions.isNotEmpty ? recognitions[0] : null);
-      
-    } catch (e) {
-      debugPrint("Erreur: $e");
-    } finally {
-      setState(() => _isAnalyzing = false);
+    var recognitions = await Tflite.runModelOnImage(
+      path: image.path,
+      numResults: 1,
+      threshold: 0.5, // Un peu plus bas pour être plus flexible
+      imageMean: 127.5,
+      imageStd: 127.5,
+    );
+
+    if (recognitions != null && recognitions.isNotEmpty) {
+      widget.onResult(recognitions[0]);
+    } else {
+      widget.onResult(null);
     }
+    
+  } catch (e) {
+    print("Erreur critique : $e");
+  } finally {
+    if (mounted) setState(() => _isAnalyzing = false);
   }
+}
 
   @override
   void dispose() {
+    Tflite.close(); // LIBÈRE LA MÉMOIRE DE L'IA
     _controller?.dispose();
     super.dispose();
   }
