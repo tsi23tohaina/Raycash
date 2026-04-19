@@ -28,7 +28,7 @@ subprojects {
             if (android != null) {
                 
                 // FIX lStar : Force le SDK 34 pour tous les sous-projets
-                android.compileSdkVersion(34)
+                android.compileSdkVersion(36)
 
                 // FIX Namespace : Pour tflite_v2 et autres
                 if (android.namespace == null) {
