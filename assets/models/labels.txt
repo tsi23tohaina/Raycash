@@ -1,0 +1,4 @@
+0 Aluminium
+1 Plastique
+2 Verre
+3 Papier/Carton

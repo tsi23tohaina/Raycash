@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:tflite_v2/tflite_v2.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final Function(Map?) onResult;
+  const CameraScreen({super.key, required this.onResult});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -11,29 +13,54 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   bool _isInitialized = false;
-  bool _isRecording = false;
+  bool _isAnalyzing = false;
 
   @override
   void initState() {
     super.initState();
-    _initCamera();
+    _initCameraAndModel();
   }
 
-  Future<void> _initCamera() async {
+  Future<void> _initCameraAndModel() async {
     final cameras = await availableCameras();
     if (cameras.isEmpty) return;
 
-    _controller = CameraController(
-      cameras.first,
-      ResolutionPreset.high, // Haute résolution pour tes analyses
-      enableAudio: true,
+    _controller = CameraController(cameras.first, ResolutionPreset.medium);
+    await _controller!.initialize();
+
+    await Tflite.loadModel(
+      model: "assets/models/model.tflite",
+      labels: "assets/models/labels.txt",
     );
 
+    setState(() => _isInitialized = true);
+  }
+
+  Future<void> _analyzeNow() async {
+    if (_isAnalyzing || _controller == null) return;
+    setState(() => _isAnalyzing = true);
+
     try {
-      await _controller!.initialize();
-      setState(() => _isInitialized = true);
+      final image = await _controller!.takePicture();
+      
+      var recognitions = await Tflite.runModelOnImage(
+        path: image.path,
+        numResults: 1,
+        threshold: 0.6,
+        imageMean: 127.5,
+        imageStd: 127.5,
+      );
+
+      // Petit délai pour laisser le temps au Hardware/CPU
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      // On renvoie le résultat au NavigationHub
+      widget.onResult(recognitions != null && recognitions.isNotEmpty ? recognitions[0] : null);
+      
     } catch (e) {
-      debugPrint("Erreur caméra: $e");
+      debugPrint("Erreur: $e");
+    } finally {
+      setState(() => _isAnalyzing = false);
     }
   }
 
@@ -45,90 +72,70 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized || _controller == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    // Calcul du ratio pour l'affichage plein écran sans déformation
-    final size = MediaQuery.of(context).size;
-    var scale = size.aspectRatio * _controller!.value.aspectRatio;
-    if (scale < 1) scale = 1 / scale;
+    if (!_isInitialized) return const Center(child: CircularProgressIndicator());
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Capture Vidéo")),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
+          Positioned.fill(child: CameraPreview(_controller!)),
+          
+          // Cadre de visée
+          Center(
             child: Container(
-              margin: const EdgeInsets.all(10),
+              width: 280,
+              height: 280,
               decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: _isAnalyzing ? Colors.orange : Colors.white.withOpacity(0.5), 
+                  width: 3
+                ),
+                borderRadius: BorderRadius.circular(30),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: AspectRatio(
-                  aspectRatio: _controller!.value.aspectRatio,
-                  child: CameraPreview(_controller!),
+            ),
+          ),
+
+          // Bouton unique en bas
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: _analyzeNow,
+                child: Container(
+                  height: 80,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    color: _isAnalyzing ? Colors.grey : Colors.teal,
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, spreadRadius: 2)],
+                  ),
+                  child: _isAnalyzing 
+                    ? const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                      )
+                    : const Icon(Icons.auto_awesome, color: Colors.white, size: 35),
                 ),
               ),
             ),
           ),
-          _buildControls(),
+          
+          if (_isAnalyzing)
+            Positioned(
+              top: 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+                  child: const Text("Analyse en cours...", style: TextStyle(color: Colors.white)),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
-
-  Widget _buildControls() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // Bouton Play / Start Recording
-          IconButton.filled(
-            onPressed: _isRecording ? null : _startVideo,
-            icon: const Icon(Icons.play_arrow),
-          ),
-          // Bouton Stop
-          IconButton.filled(
-            onPressed: _isRecording ? _stopVideo : null,
-            icon: const Icon(Icons.stop)
-           
-          ),
-          // Bouton Photo
-          IconButton.filledTonal(
-            onPressed: _takePhoto,
-            icon: const Icon(Icons.camera_alt),
-          ),
-          // Bouton Save (Simulation)
-          IconButton.filledTonal(
-            onPressed: () => _showMsg("Données sauvegardées"),
-            icon: const Icon(Icons.save),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _startVideo() async {
-    await _controller!.startVideoRecording();
-    setState(() => _isRecording = true);
-  }
-
-  Future<void> _stopVideo() async {
-    final file = await _controller!.stopVideoRecording();
-    setState(() => _isRecording = false);
-    _showMsg("Vidéo enregistrée : ${file.name}");
-  }
-
-  Future<void> _takePhoto() async {
-    final file = await _controller!.takePicture();
-    _showMsg("Photo capturée : ${file.name}");
-  }
-
-  void _showMsg(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-}
+} 
