@@ -56,7 +56,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false      // Désactive la réduction de code
+            isShrinkResources = false   // Désactive la suppression de ressources
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             
             signingConfig = if (keystorePropertiesFile.exists()) {

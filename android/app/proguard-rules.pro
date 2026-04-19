@@ -13,3 +13,7 @@
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
 }
+
+# Garder les classes liées à la caméra qui sont appelées via JNI
+-keep class androidx.camera.core.** { *; }
+-dontwarn androidx.camera.core.**
