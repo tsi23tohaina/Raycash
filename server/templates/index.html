@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RayCash AI Tester</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f4f4; }
+        #container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 15px; }
+        video, img { width: 100%; border-radius: 10px; margin-top: 10px; }
+        button { background: #008080; color: white; border: none; padding: 15px; border-radius: 50px; cursor: pointer; width: 100%; font-size: 16px; }
+        #result { margin-top: 20px; padding: 15px; border: 2px dashed #008080; display: none; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h2>RayCash - Test IA</h2>
+        <video id="webcam" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <button onclick="capture()">📸 SCANNER LE DÉCHET</button>
+        
+        <div id="result">
+            <h3 id="label">...</h3>
+            <p id="conf">...</p>
+            <img id="capturedImage" src="">
+        </div>
+    </div>
+
+    <script>
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('canvas');
+
+    // Vérification de la disponibilité de mediaDevices
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                alert("Erreur d'accès caméra : " + err);
+            });
+    } else {
+        alert("La caméra n'est pas accessible en HTTP non sécurisé. Utilisez localhost ou configurez les Flags du navigateur.");
+    }
+
+    async function capture() {
+        if (!video.srcObject) {
+            alert("Caméra non prête");
+            return;
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                alert("Erreur lors de la création de l'image");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', blob, 'capture.jpg');
+
+            document.getElementById('label').innerText = "Analyse...";
+            document.getElementById('result').style.display = "block";
+
+            try {
+    const response = await fetch('/predict', { method: 'POST', body: formData });
+    const data = await response.json();
+
+    if (response.ok) {
+        document.getElementById('label').innerText = "Déchet : " + (data.label || "Non reconnu");
+        document.getElementById('conf').innerText = "Confiance : " + (data.confidence || "0%");
+        // On utilise l'URL renvoyée par le serveur pour confirmer que l'image est bien arrivée
+        document.getElementById('capturedImage').src = data.image_url;
+    } else {
+        document.getElementById('label').innerText = "Erreur : " + data.error;
+    }
+} catch (error) {
+    alert("Le serveur Flask ne répond pas. Vérifiez le terminal.");
+}
+        }, 'image/jpeg');
+    }
+</script>
+</body>
+</html>
