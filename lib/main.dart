@@ -4,17 +4,17 @@ import 'screens/data_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const RaycashApp());
+  runApp(const ReycashApp());
 }
 
-class RaycashApp extends StatelessWidget {
-  const RaycashApp({super.key});
+class ReycashApp extends StatelessWidget {
+  const ReycashApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Raycash Project',
+      title: 'ReyCash',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
@@ -33,23 +33,44 @@ class NavigationHub extends StatefulWidget {
 
 class _NavigationHubState extends State<NavigationHub> {
   int _currentIndex = 0;
-  
-  // On stocke le dernier résultat ici pour pouvoir le voir dans l'onglet "Fiche"
-  Map? _lastResult;
+  String _currentIP = "192.168.1.104"; // IP par défaut
+  List<Map> _scannedItems = []; // Liste de tous les déchets scannés dans la session
 
-  void _updateResult(Map? result) {
+  // Fonction pour changer l'IP (appelée depuis le menu caché)
+  void _updateIP(String newIP) {
     setState(() {
-      _lastResult = result;
-      _currentIndex = 1; // Bascule automatiquement sur la fiche après scan
+      _currentIP = newIP;
+    });
+  }
+
+  // Ajoute un déchet à la liste
+  void _addResult(Map result) {
+    setState(() {
+      _scannedItems.add(result);
+    });
+  }
+
+  // Réinitialise la session
+  void _resetSession() {
+    setState(() {
+      _scannedItems.clear();
+      _currentIndex = 0;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Liste des pages mise à jour dynamiquement
     final List<Widget> _pages = [
-      CameraScreen(onResult: _updateResult), 
-      DataScreen(result: _lastResult)
+      CameraScreen(
+        onResult: _addResult, 
+        serverIP: _currentIP, 
+        onIPUpdate: _updateIP
+      ),
+      DataScreen(
+        items: _scannedItems, 
+        onReset: _resetSession,
+        serverIP: _currentIP,
+      )
     ];
 
     return Scaffold(
@@ -60,7 +81,7 @@ class _NavigationHubState extends State<NavigationHub> {
         selectedItemColor: Colors.teal,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'Scanner'),
-          BottomNavigationBarItem(icon: Icon(Icons.description), label: 'Fiche'),
+          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Session'),
         ],
       ),
     );
