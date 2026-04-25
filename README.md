@@ -69,3 +69,4 @@ RayCash apporte une réponse technologique concrète aux défis écologiques à 
 4.  **Mobile** : Installez l'APK sur le smartphone.
 5.  **Réseau** : Connectez tous les appareils sur le **même point d'accès Wi-Fi**.
 
+Fin
